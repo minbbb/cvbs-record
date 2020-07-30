@@ -1,0 +1,9 @@
+{
+	"ffmpeg": "./ffmpeg",
+	"ffprobe": "./ffprobe",
+	"videos": "./videos",
+	"enableLog": false,
+	"autoRecord": false,
+	"videoInput": "auto",
+	"audioInput": "hw:CARD=CAMERA"
+}

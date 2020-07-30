@@ -1,0 +1,13 @@
+[Unit]
+Description=CVBS Record
+
+[Service]
+ExecStart=/usr/bin/node /root/cvbs-record/record.js
+WorkingDirectory=/root/cvbs-record
+Restart=always
+RestartSec=10
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

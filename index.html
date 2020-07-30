@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+
+<head>
+	<meta charset="UTF-8">
+	<title>Управление камерой</title>
+	<style>
+		body {
+			font-family: sans-serif;
+		}
+
+		#listFilesError {
+			color: #df0909;
+		}
+
+		.startButton,
+		.stopButton {
+			padding: 10px;
+			margin: 5px;
+			color: #fff;
+			font-weight: bold;
+		}
+
+		.startButton {
+			background-color: #218838;
+		}
+
+		.stopButton {
+			background-color: #c82333;
+		}
+
+		#files button {
+			background-color: #c82333;
+			color: #fff;
+			font-weight: bold;
+			margin-left: 20px;
+		}
+
+		#files li {
+			margin-bottom: 15px;
+		}
+
+		button {
+			cursor: pointer;
+		}
+	</style>
+</head>
+
+<body>
+	<div align="center"><b>Статус: </b><span id="status"></span></div>
+	<div align="center"><b>Видеоисточник: </b><span id="videoInput"></span></div>
+	<div align="center"><button onclick="startRecord()" class="startButton">Запустить запись</button></div>
+	<div align="center"><button onclick="stopRecord()" class="stopButton">Остановить запись</button></div>
+	<div align="center" id="listFilesError"></div>
+	<div align="center" id="files"></div>
+	<script>
+		function customFetch(url, timeout, options) {
+			return Promise.race([fetch(url, options), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeout))]);
+		}
+		function getStatus() {
+			const getStatusInterval = 2000;
+			setTimeout(async () => {
+				let textStatus = "Ошибка получения статуса!";
+				try {
+					const response = await customFetch("/status", getStatusInterval);
+					if (response.ok) {
+						const status = await response.text();
+						switch (status) {
+							case "0":
+								textStatus = "Запись остановлена";
+								break;
+							case "1":
+								textStatus = "Запуск записи";
+								break;
+							case "2":
+								textStatus = "Идёт запись";
+								break;
+						}
+					}
+				} catch (err) {
+					textStatus = "Ошибка получения статуса!"
+				}
+				document.getElementById("status").innerText = textStatus;
+				getStatus();
+			}, getStatusInterval);
+		}
+		function getFiles() {
+			const getFilesInterval = 5000;
+			setTimeout(async () => {
+				try {
+					const response = await customFetch("/files", getFilesInterval);
+					if (response.ok) {
+						const files = await response.json();
+						let html = "";
+						files.files.forEach(el => {
+							html += `<li><a href="/files/${el}" target="_blank">${el}</a> <button data-file="${el}">Удалить</button></li>`;
+						});
+						document.getElementById("files").innerHTML = `<ul>${html}</ul>`;
+						document.querySelectorAll("[data-file]").forEach(el => el.onclick = deleteFile);
+						document.getElementById("listFilesError").innerText = "";
+					}
+				} catch (err) {
+					document.getElementById("listFilesError").innerText = "Ошибка обновления списка файлов!";
+				}
+				getFiles();
+			}, getFilesInterval);
+		}
+		async function deleteFile() {
+			const deleteFileTimeout = 10000;
+			const fileName = this.getAttribute("data-file");
+			try {
+				const response = await customFetch(`/deleteFile/${fileName}`, deleteFileTimeout);
+				if (!response.ok) {
+					alert("Ошибка при удалении файла");
+				}
+			} catch (err) {
+				alert("Ошибка при удалении файла");
+			}
+		}
+		async function startRecord() {
+			const startRecordTimeout = 5000;
+			try {
+				const response = await customFetch(`/startRecord`, startRecordTimeout);
+				if (!response.ok) {
+					alert("Ошибка при старте записи");
+				}
+			} catch (err) {
+				alert("Ошибка при старте записи");
+			}
+		}
+		async function stopRecord() {
+			const stopRecordTimeout = 5000;
+			try {
+				const response = await customFetch(`/stopRecord`, stopRecordTimeout);
+				if (!response.ok) {
+					alert("Ошибка при остановке записи");
+				}
+			} catch (err) {
+				alert("Ошибка при остановке записи");
+			}
+		}
+		function getVideoInput() {
+			const getVideoInputInterval = 5000;
+			setTimeout(async () => {
+				let textStatus = "Ошибка получения";
+				try {
+					const response = await customFetch("/videoInput", getVideoInputInterval);
+					if (response.ok) {
+						textStatus = await response.text();
+					}
+				} catch (err) {
+					textStatus = "Ошибка получения"
+				}
+				document.getElementById("videoInput").innerText = textStatus;
+				getVideoInput();
+			}, getVideoInputInterval);
+		}
+		getStatus();
+		getFiles();
+		getVideoInput();
+	</script>
+</body>
+
+</html>
