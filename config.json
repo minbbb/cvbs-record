@@ -5,5 +5,8 @@
 	"enableLog": false,
 	"autoRecord": false,
 	"videoInput": "auto",
-	"audioInput": "hw:CARD=CAMERA"
+	"audioInput": "hw:CARD=CAMERA",
+	"enableGPIOcontrol": true,
+	"ledIndicatorPin": 16,
+	"buttonPin": 15
 }

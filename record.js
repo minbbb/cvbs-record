@@ -12,9 +12,11 @@ const writeFile = util.promisify(fs.writeFile);
 const readdir = util.promisify(fs.readdir);
 const stat = util.promisify(fs.stat);
 const unlink = util.promisify(fs.unlink);
+const Gpio = require('onoff').Gpio;
 let status = 0; //0 - recording stopped, 1- start recording, 2 - recording in progress
 let proc;
 let videoInput = config.videoInput;
+let blinkInterval = 1000;
 
 logger("Start script");
 
@@ -28,6 +30,10 @@ async function logger(text) {
 }
 
 async function record() {
+	if (videoInput === "" || videoInput === undefined || !await exists(videoInput)) {
+		logger("Video input not exists");
+		return;
+	}
 	logger("I'm starting a recording attempt");
 	if (!await exists(config.videos)) {
 		try {
@@ -75,14 +81,7 @@ async function record() {
 	}, 2000);
 }
 
-const app = express();
-app.get("/", (req, res) => {
-	res.sendFile(__dirname + "/index.html");
-});
-app.get("/status", (req, res) => {
-	res.send(status.toString());
-});
-app.get("/files", async (req, res) => {
+async function getFiles() {
 	let files = [];
 	if (await exists(config.videos)) {
 		const list = await readdir(config.videos);
@@ -93,6 +92,18 @@ app.get("/files", async (req, res) => {
 			}
 		}
 	}
+	return files;
+}
+
+const app = express();
+app.get("/", (req, res) => {
+	res.sendFile(__dirname + "/index.html");
+});
+app.get("/status", (req, res) => {
+	res.send(status.toString());
+});
+app.get("/files", async (req, res) => {
+	const files = await getFiles();
 	res.send({ files });
 });
 app.get("/files/:file", async (req, res) => {
@@ -112,11 +123,14 @@ app.get("/deleteFile/:file", async (req, res) => {
 			await unlink(fileName);
 			logger(`File deleted ${fileName}`);
 		} catch (err) {
-			res.sendStatus(500);
+			const files = await getFiles();
+			res.status(500).send({ files });
 		}
-		res.sendStatus(200);
+		const files = await getFiles();
+		res.status(200).send({ files });
 	} else {
-		res.sendStatus(404);
+		const files = await getFiles();
+		res.status(404).send({ files });
 	}
 });
 app.get("/startRecord", (req, res) => {
@@ -134,6 +148,7 @@ app.get("/stopRecord", (req, res) => {
 			proc.kill('SIGTERM');
 			res.sendStatus(200);
 		} catch (err) {
+			logger(err);
 			res.sendStatus(500);
 		}
 	} else {
@@ -144,43 +159,110 @@ app.get("/videoInput", (req, res) => {
 	res.send(videoInput);
 });
 
-function searchVideo() {
-	return new Promise(async (resolve, reject) => {
-		let count = 0;
-		let listDev = await readdir("/dev");
-		listDev = listDev.filter(el => /video\d+/.test(el));
-		if (!listDev.length) {
-			reject("Not found video");
-		}
-		listDev.forEach(el => {
-			const pathVideo = path.join("/dev", el);
-			let test = child_process.spawn(config.ffprobe, [pathVideo]);
-			test.on("close", (code) => {
-				if (!code) {
-					resolve(pathVideo);
-				}
-				count++;
-				if (count >= listDev.length) {
-					reject("Not found video");
-				}
+function searchVideoInput() {
+	const search = () => {
+		return new Promise(async (resolve, reject) => {
+			let count = 0;
+			let listDev = await readdir("/dev");
+			listDev = listDev.filter(el => /video\d+/.test(el));
+			if (!listDev.length) {
+				reject("Not found video input");
+			}
+			listDev.forEach(el => {
+				const pathVideo = path.join("/dev", el);
+				let test = child_process.spawn(config.ffprobe, [pathVideo]);
+				test.on("close", (code) => {
+					if (!code) {
+						resolve(pathVideo);
+					}
+					count++;
+					if (count >= listDev.length) {
+						reject("Not found video input");
+					}
+				});
 			});
 		});
-	});
-}
-
-async function start() {
-	if (videoInput == "auto") {
+	};
+	const recursiveSearch = async () => {
 		try {
-			videoInput = await searchVideo();
+			videoInput = await search();
 		} catch (err) {
 			logger(err);
 			videoInput = undefined;
 		}
+		if (videoInput === "" || videoInput === undefined) {
+			setTimeout(() => {
+				recursiveSearch();
+			}, 10000);
+		} else {
+			if (config.autoRecord) {
+				record();
+			}
+		}
+	};
+	recursiveSearch();
+}
+
+function start() {
+	if (videoInput == "auto") {
+		searchVideoInput();
 	}
 	app.listen(80);
-	if (config.autoRecord) {
+	if (config.autoRecord && videoInput != "auto") {
 		record();
 	}
+	if (config.enableGPIOcontrol) {
+		const button = new Gpio(config.buttonPin, 'in', 'both');
+		checkPressButton(button, 0);
+		const ledIndicator = new Gpio(config.ledIndicatorPin, 'out');
+		blink(ledIndicator, 1);
+	}
+}
+
+function blink(ledIndicator, ledIndicatorValue) {
+	ledIndicatorValue = ledIndicatorValue ^ 1;
+	setTimeout(() => {
+		ledIndicator.write(ledIndicatorValue, () => {
+			switch (status) {
+				case 0:
+					blinkInterval = 1000;
+					break;
+				case 1:
+					blinkInterval = 50;
+					break;
+				case 2:
+					blinkInterval = 200;
+					break;
+				default: blinkInterval = 1000;
+			}
+			blink(ledIndicator, ledIndicatorValue);
+		});
+	}, blinkInterval);
+}
+
+function checkPressButton(button, buttonValue) {
+	setTimeout(() => {
+		button.read((err, value) => {
+			if (!err) {
+				if (buttonValue != value) {
+					if (value == 1) {
+						if (proc) {
+							logger("Attempt to stop recording");
+							try {
+								proc.kill('SIGTERM');
+							} catch (err) {
+								logger(err);
+							}
+						} else {
+							record();
+						}
+					}
+					buttonValue = value;
+				}
+			}
+			checkPressButton(button, buttonValue);
+		});
+	}, 100);
 }
 
 start();

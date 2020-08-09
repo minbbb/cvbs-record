@@ -2,6 +2,7 @@
 
 <head>
 	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Управление камерой</title>
 	<style>
 		body {
@@ -83,6 +84,23 @@
 				getStatus();
 			}, getStatusInterval);
 		}
+		function createFilesList(files) {
+			let html = "";
+			files.files.sort((a, b) => {
+				let numA = parseInt(a);
+				let numB = parseInt(b);
+				if (!isNaN(numA) && !isNaN(numB)) {
+					return numA - numB;
+				}
+				return 0;
+			});
+			files.files.forEach(el => {
+				html += `<li><a href="/files/${el}" target="_blank">${el}</a> <button data-file="${el}">Удалить</button></li>`;
+			});
+			document.getElementById("files").innerHTML = `<ul>${html}</ul>`;
+			document.querySelectorAll("[data-file]").forEach(el => el.onclick = deleteFile);
+			document.getElementById("listFilesError").innerText = "";
+		}
 		function getFiles() {
 			const getFilesInterval = 5000;
 			setTimeout(async () => {
@@ -90,13 +108,7 @@
 					const response = await customFetch("/files", getFilesInterval);
 					if (response.ok) {
 						const files = await response.json();
-						let html = "";
-						files.files.forEach(el => {
-							html += `<li><a href="/files/${el}" target="_blank">${el}</a> <button data-file="${el}">Удалить</button></li>`;
-						});
-						document.getElementById("files").innerHTML = `<ul>${html}</ul>`;
-						document.querySelectorAll("[data-file]").forEach(el => el.onclick = deleteFile);
-						document.getElementById("listFilesError").innerText = "";
+						createFilesList(files);
 					}
 				} catch (err) {
 					document.getElementById("listFilesError").innerText = "Ошибка обновления списка файлов!";
@@ -112,6 +124,8 @@
 				if (!response.ok) {
 					alert("Ошибка при удалении файла");
 				}
+				const files = await response.json();
+				createFilesList(files);
 			} catch (err) {
 				alert("Ошибка при удалении файла");
 			}
@@ -146,9 +160,12 @@
 					const response = await customFetch("/videoInput", getVideoInputInterval);
 					if (response.ok) {
 						textStatus = await response.text();
+						if (textStatus == "") {
+							textStatus = "Источник не выбран";
+						}
 					}
 				} catch (err) {
-					textStatus = "Ошибка получения"
+					textStatus = "Ошибка получения";
 				}
 				document.getElementById("videoInput").innerText = textStatus;
 				getVideoInput();
