@@ -1,8 +1,8 @@
 # cvbs-record
 Скрипт для записи видео с платы захвата или веб камеры. Удобно использовать для записи с аналоговой камеры с платой оцифровки через мини ПК (в данном случае для примера используется banana pi, но можно использовать что вам нравится).
 ## Инструкция по установке
-1. Скачиваем образ armbian https://www.armbian.com/bananapi-m2-zero. По идее не важно какой дистрибутив, но я использовал Bionic server.
-1. Пишем образ на флешку через rufus.
+1. Скачиваем образ armbian https://www.armbian.com/bananapi-m2-zero. По идее не важно какой дистрибутив, но я использовал Armbian Bionic server.
+1. Пишем образ на флешку через rufus
 1. Подключаемся к терминалу
 1. Для настройки на плате нужен будет интернет, поэтому подключаемся к wifi через команду `nmtui` -> `Activate a connection`
 1. Выключаем GUI (если он включен), чтобы он не расходовал ресурсы
@@ -10,18 +10,18 @@
 1. Скачиваем скрипты
 `git clone https://github.com/minbbb/cvbs-record.git`
 1. Скачиваем ffmpeg
-```
-wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-armhf-static.tar.xz
-tar -xf ffmpeg-release-armhf-static.tar.xz
-cp ffmpeg-X.X-armhf-static/ffmpeg cvbs-record/
-cp ffmpeg-X.X-armhf-static/ffprobe cvbs-record/
-```
+	```
+	wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-armhf-static.tar.xz
+	tar -xf ffmpeg-release-armhf-static.tar.xz
+	cp ffmpeg-X.X-armhf-static/ffmpeg cvbs-record/
+	cp ffmpeg-X.X-armhf-static/ffprobe cvbs-record/
+	```
 1. Ставим nodejs
-```
-apt update
-apt install nodejs
-apt install npm
-```
+	```
+	apt update
+	apt install nodejs
+	apt install npm
+	```
 1. Переходим в директорию со скриптами
 `cd cvbs-record`
 1. Устанавливаем зависимости
