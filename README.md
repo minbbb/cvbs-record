@@ -60,6 +60,10 @@ apt install npm
 ![image](img/scheme.jpg)
 
 ## Прототипы
-С применением orange pi zero
+С применением Orange Pi Zero
 ![image](img/prototype1_0.jpg)
 ![image](img/prototype1_1.jpg)
+
+С применением Banana Pi BPI-M2 ZERO
+![image](img/prototype2_0.jpg)
+![image](img/prototype2_1.jpg)
